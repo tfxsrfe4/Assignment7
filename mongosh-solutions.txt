@@ -1,0 +1,97 @@
+// Assignment 7 — MongoDB Shell (mongosh)
+// Run these commands in mongosh after selecting/creating the assignment7 database.
+use assignment7
+
+// 1. Explicit books collection with non-empty title validation
+db.createCollection("books", {
+  validator: {
+    $jsonSchema: {
+      bsonType: "object",
+      required: ["title"],
+      properties: {
+        title: { bsonType: "string", minLength: 1 }
+      }
+    }
+  },
+  validationLevel: "strict",
+  validationAction: "error"
+})
+
+// 2. Implicit authors collection: inserting creates it if absent
+db.authors.insertOne({ name: "Aldous Huxley", country: "England" })
+
+// 3. Capped logs collection, 1 MB
+db.createCollection("logs", { capped: true, size: 1048576 })
+
+// 4. Index on books.title
+db.books.createIndex({ title: 1 })
+
+// Sample records to make questions 5-19 testable
+db.books.insertMany([
+  { title: "Brave New World", author: "Aldous Huxley", year: NumberInt(1932), genres: ["Science Fiction", "Dystopian"] },
+  { title: "Future", author: "A. Writer", year: NumberInt(2018), genres: ["Science Fiction"] },
+  { title: "Dune", author: "Frank Herbert", year: NumberInt(1965), genres: ["Science Fiction", "Adventure"] },
+  { title: "The Shining", author: "Stephen King", year: NumberInt(1977), genres: ["Horror"] },
+  { title: "The Road", author: "Cormac McCarthy", year: NumberInt(2006), genres: ["Drama", "Post-apocalyptic"] },
+  { title: "The Hunger Games", author: "Suzanne Collins", year: NumberInt(2008), genres: ["Dystopian", "Adventure"] },
+  { title: "The Martian", author: "Andy Weir", year: NumberInt(2011), genres: ["Science Fiction", "Adventure"] },
+  { title: "The Silent Patient", author: "Alex Michaelides", year: "2019", genres: ["Thriller"] }
+])
+
+// 5. Insert one book
+db.books.insertOne({ title: "The Hobbit", author: "J.R.R. Tolkien", year: NumberInt(1937), genres: ["Fantasy", "Adventure"] })
+
+// 6. Insert at least three books (run separately if you already inserted sample data above)
+db.books.insertMany([
+  { title: "Book Batch A", author: "Author A", year: NumberInt(1995), genres: ["Drama"] },
+  { title: "Book Batch B", author: "Author B", year: NumberInt(2005), genres: ["Science Fiction"] },
+  { title: "Book Batch C", author: "Author C", year: NumberInt(2015), genres: ["Fantasy"] }
+])
+
+// 7. Insert a log
+db.logs.insertOne({ message: "Application started", createdAt: new Date() })
+
+// 8. Update Future's year to 2022
+db.books.updateOne({ title: "Future" }, { $set: { year: NumberInt(2022) } })
+
+// 9. Find Brave New World
+db.books.find({ title: "Brave New World" })
+
+// 10. Books published between 1990 and 2010 (inclusive)
+db.books.find({ year: { $gte: 1990, $lte: 2010 } })
+
+// 11. Genre includes Science Fiction
+db.books.find({ genres: "Science Fiction" })
+
+// 12. Skip first two, return next three, sort year descending
+db.books.find().sort({ year: -1 }).skip(2).limit(3)
+
+// 13. Year field stored as BSON integer
+db.books.find({ year: { $type: "int" } })
+
+// 14. Genres do not include Horror or Science Fiction
+db.books.find({ genres: { $nin: ["Horror", "Science Fiction"] } })
+
+// 15. Delete books published before 2000 (destructive)
+db.books.deleteMany({ year: { $lt: 2000 } })
+
+// 16. Aggregation: after 2000, descending year
+db.books.aggregate([
+  { $match: { year: { $gt: 2000 } } },
+  { $sort: { year: -1 } }
+])
+
+// 17. After 2000, show only title, author, year
+db.books.aggregate([
+  { $match: { year: { $gt: 2000 } } },
+  { $project: { _id: 0, title: 1, author: 1, year: 1 } }
+])
+
+// 18. Split each genres array into separate documents
+db.books.aggregate([{ $unwind: "$genres" }])
+
+// 19. Join books with logs using bookId on log documents
+// Add a matching bookId to a log if you want to see a non-empty joined array.
+db.books.aggregate([
+  { $lookup: { from: "logs", localField: "_id", foreignField: "bookId", as: "bookLogs" } }
+])
